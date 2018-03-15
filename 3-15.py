@@ -156,7 +156,7 @@ def op_in_bracket(op_position,bracket_positions):
 	格式：[[2,4],[1,6]]
 	"""
     result=False
-    for i in bracket_positions: #TODO 确认op不是括号
+    for i in bracket_positions: #TODO 确认op不是括号 TRY
         if i[0]<op_position<i[1]:
             result=True
     return result
