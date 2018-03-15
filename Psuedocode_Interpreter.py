@@ -1,11 +1,12 @@
-'''INTEGER: Whole number. E.g. 9, 16
+"""
+INTEGER: Whole number. E.g. 9, 16
 REAL: A decimal number. E.g. 3.4 or -3.5
 CHAR: One character E.g. ‘A’
 STRING: A sequences of blanks, letters or words E.g. “Love”, “Today is a lovely day.”, “ “
 BOOLEAN: Logical values. E.g. TRUE or FALSE
 DATE: Any date in date format. E.g. 03/12/2016
 The assignment operator is ← (ID:8592)
-'''
+"""
 
 #class 代码块
 import re
@@ -26,7 +27,7 @@ class Integer(int,Variable):
 class Real(float,Variable):
     pass
 class String(str,Variable):
-    def __repr__(self):
+    def __repr__(self): #TODO '''"""'''111 这尼玛这么处理或者就这么算了？？
         return '"'+self.value+'"'
 class Char(Variable): #不能进行加减乘除
     def __repr__(self):
@@ -88,7 +89,7 @@ def WHILE_executor(lines):
         else:
             break
 def find_pair(word,lines,start): #Accepts iterator for lines
-    'Find the pairs in the context(start-end). For example, if word=="IF", it returns the position of "ENDIF"'
+    """Find the pairs in the context(start-end). For example, if word=="IF", it returns the position of "ENDIF"""
     for i in range(start, len(lines)):
         if 'END'+word in lines[i]:
             return i
@@ -102,7 +103,6 @@ def clean_exps(exps): #去除每个的后面空格，拒绝''
         result[i]=result[i].lstrip()
     return result
 def sep_expression(exp,sep): #以sep分隔，去除每个的后面空格，拒绝''
-    result=[]
     return clean_exps(exp.split(sep))
 def compile_lines(lines):
     line_num=0
@@ -139,22 +139,22 @@ def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
     return clean_exps(original)
 
 def get_bracket_position(exp):
-	left_bracket_position=[]
-	#right_bracket_position=[]
-	result=[]
-	for char_pos in range(len(exp)):
-		if exp[char_pos]=='(':
-			left_bracket_position.append(char_pos)
-		if exp[char_pos]==')':
-			result.append([left_bracket_position.pop(),char_pos])
-	assert len(left_bracket_position)==0
-	return result
+    left_bracket_position=[]
+    #right_bracket_position=[]
+    result=[]
+    for char_pos in range(len(exp)):
+        if exp[char_pos]=='(':
+            left_bracket_position.append(char_pos)
+        if exp[char_pos]==')':
+            result.append([left_bracket_position.pop(),char_pos])
+    assert len(left_bracket_position)==0
+    return result
 
 def op_in_bracket(op_position,bracket_positions):
     """
-	接受来自get_bracket position的数组，判断运算符是否在括号内
-	格式：[[2,4],[1,6]]
-	"""
+    接受来自get_bracket position的数组，判断运算符是否在括号内
+    格式：[[2,4],[1,6]]
+    """
     result=False
     for i in bracket_positions: #TODO 确认op不是括号
         if i[0]<op_position<i[1]:
@@ -170,8 +170,8 @@ def evaluate_exp(exp): #替换，识别，运算
     2.代入
     3.分隔
     4.最底层分隔。分割了？
-        a)	YES:返回
-        b)	NO:再下一层
+        a)    YES:返回
+        b)    NO:再下一层
     '''
     if variable_type_recognition(exp):
         return eval(variable_type_recognition(exp) + '(' + exp + ')')
@@ -234,7 +234,7 @@ def assignment(line):
 # print(evaluate_exp('1<2'))
 if __name__=='__main__':
     #暂定为读取文件
-    with open('p1.txt','r') as file:
+    with open('test.txt','r') as file:
         lines=file.read().rstrip().split('\n') #以\n为分隔符
         print('所有行:',lines)
         compile_lines(lines)
