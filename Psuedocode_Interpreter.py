@@ -126,6 +126,7 @@ def compile_lines(lines):
         print('variables:',variables)
 def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
     #还没有考虑括号！
+    #TODO 可能有更好地算法
     original=[exp]
     for op in operators:
         result = []
@@ -135,34 +136,52 @@ def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
                 result.append(op)
             result=result[:-1]
         original=result
-    # print(original,clean_exps(original))
-    return clean_exps(original)
-
-def get_bracket_position(exp):
-    left_bracket_position=[]
-    #right_bracket_position=[]
-    result=[]
-    for char_pos in range(len(exp)):
-        if exp[char_pos]=='(':
-            left_bracket_position.append(char_pos)
-        if exp[char_pos]==')':
-            result.append([left_bracket_position.pop(),char_pos])
-    assert len(left_bracket_position)==0
+    result=clean_exps(result)
+    #选择在这里加入判断是否运算符在括号内
+    # eg. ['(1','+','2)*3','+','2'] 5项
+    op_positions=[i for i in range(len(result)) if result[i] in operators]
+    op_in_bracket_count=0
+    print('运算符位置',result,op_positions,operators)
+    for op_count in range(len(op_positions)):
+        for real_operator_position in range(len(result)):
+            real_operator_position-=op_in_bracket_count*2 #每一次都会少2项
+            if real_operator_position>=len(result):
+                break
+            if result[real_operator_position] in operators and op_in_bracket(result[real_operator_position],op_count,result):
+                result[real_operator_position-1:real_operator_position+2]=[''.join(result[real_operator_position-1:real_operator_position+2])]
+                op_in_bracket_count+=1
+    print('sep_exp_eval结果：',result)
     return result
-
-def op_in_bracket(op_position,bracket_positions):
-    """
-    接受来自get_bracket position的数组，判断运算符是否在括号内
-    格式：[[2,4],[1,6]]
-    """
-    result=False
-    for i in bracket_positions: #TODO 确认op不是括号
-        if i[0]<op_position<i[1]:
-            result=True
-    return result
+    # return clean_exps(original)
 
 def evaluate_sinmple_exp(exp):
     pass
+
+
+def op_in_bracket(op, op_seq, seps):
+    """
+    seps为分隔列表，op_seq代表是exp中的第op_seq个op
+    判断方法：该current_exp之前是否(数量=)数量
+    大于则在括号内
+    注意op_seq从0开始
+    """
+    in_bracket=False
+    op_count=-1 #记数：遇到了第几个op了(0开始)
+    exp_count=0 #记数：第几个表达式包含第op_seq个op(0开始)
+    while True:
+        if seps[exp_count]==op:
+            op_count+=1
+        if op_count==op_seq:
+            break
+        exp_count+=1
+    original_exp = ''.join(seps[:exp_count])
+    # print(original_exp)
+    if original_exp.count('(') > original_exp.count(')'):
+        return True
+    else:
+        return False  # TODO 检验）数量>（数量
+# print(op_in_bracket('+',0,['(1','+','1)*2']))
+
 
 def evaluate_exp(exp): #替换，识别，运算
     '''
@@ -173,6 +192,9 @@ def evaluate_exp(exp): #替换，识别，运算
         a)    YES:返回
         b)    NO:再下一层
     '''
+    print('evaluate_exp接收到:',exp)
+    if exp[0]=='(' and exp[-1]==')':
+        exp=exp[1:-1]
     if variable_type_recognition(exp):
         return eval(variable_type_recognition(exp) + '(' + exp + ')')
     for i in variables:
@@ -196,7 +218,7 @@ def evaluate_exp(exp): #替换，识别，运算
         if seps[0] == '-':  #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
             seps[0:2] = [seps[0]+seps[1]]
         for op in ops: #op:['AND',2(双目运算符)]
-            for i in range(seps.count(op[0])):
+            for op_seq in range(seps.count(op[0])):
                 if op[1]==1 and op[0] in exp: #处理单目运算符,要求存在该运算符+
                     py_op=op[0].lower()
                     index=seps.index(op[0])

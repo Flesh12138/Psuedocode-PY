@@ -1,6 +1,1 @@
 t<-(1+2)*3
-a<-9
-WHILE t<10 DO
-	t<-t+1
-	a<-a*2
-ENDWHILE
