@@ -141,15 +141,19 @@ def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
     # eg. ['(1','+','2)*3','+','2'] 5项
     op_positions=[i for i in range(len(result)) if result[i] in operators]
     op_in_bracket_count=0
-    print('运算符位置',result,op_positions,operators)
-    for op_count in range(len(op_positions)):
-        for real_operator_position in range(len(result)):
-            real_operator_position-=op_in_bracket_count*2 #每一次都会少2项
-            if real_operator_position>=len(result):
-                break
-            if result[real_operator_position] in operators and op_in_bracket(result[real_operator_position],op_count,result):
-                result[real_operator_position-1:real_operator_position+2]=[''.join(result[real_operator_position-1:real_operator_position+2])]
-                op_in_bracket_count+=1
+    print('sep_exps_eval分隔结果，运算符位置，运算符：',result,op_positions,operators)
+    # for op_count in range(len(op_positions)):
+    op_count=0
+    for real_operator_position in range(len(result)):
+        real_operator_position -= op_in_bracket_count * 2  # 每一次都会少2项
+        if real_operator_position >= len(result):
+            break
+        if result[real_operator_position] in operators and op_in_bracket(result[real_operator_position], op_count,
+                                                                         result):
+            result[real_operator_position - 1:real_operator_position + 2] = [
+                ''.join(result[real_operator_position - 1:real_operator_position + 2])]
+            op_in_bracket_count += 1
+            op_count+=1
     print('sep_exp_eval结果：',result)
     return result
     # return clean_exps(original)
@@ -202,11 +206,11 @@ def evaluate_exp(exp): #替换，识别，运算
         exp = exp.replace(i, str(variables[i]))
     flag = False
     for ops in [
-        [['AND',2],['OR',2],['NOT',1]],
+        [['NOT',1],['AND',2],['OR',2]],
         [['>=',2],['>',2],['<',2],['<=',2],['!=',2],['==',2]],
         [['+',2],['-',2]],
         [['*',2],['/',2],['//',2]]
-        #正负号？
+        # TODO 本来应该单目的专门搞一类，算法也许也不一样，这里就偷懒了。反正要让单目的先算
     ]:
         if flag==True: #分隔了
             break
