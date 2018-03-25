@@ -1,4 +1,5 @@
 """
+数据类型：
 INTEGER: Whole number. E.g. 9, 16
 REAL: A decimal number. E.g. 3.4 or -3.5
 CHAR: One character E.g. ‘A’
@@ -6,8 +7,37 @@ STRING: A sequences of blanks, letters or words E.g. “Love”, “Today is a l
 BOOLEAN: Logical values. E.g. TRUE or FALSE
 DATE: Any date in date format. E.g. 03/12/2016
 The assignment operator is ← (ID:8592)
-"""
 
+借鉴了python的优先级
+Python运算符详细说明
+下表从高到低列出了运算符的优先级。同一行中的运算符具有相同优先级，然后运算符的优先级是运算表达式从左到右。
+
+优先级	运算符	描述
+1	lambda	Lambda表达式
+2	or	布尔“或”
+3	and	布尔“与”
+4	not x	布尔“非”
+5	in，not in	成员测试
+6	is，is not	同一性测试
+7	<，<=，>，>=，!=，==	比较
+8	|	按位或
+9	^	按位异或
+10	&	按位与
+11	<<，>>	移位
+12	+，-	加法与减法
+13	*，/，%	乘法、除法与取余
+14	+x，-x	正负号
+15	~x	按位翻转
+16	**	指数
+17	x.attribute	属性参考
+18	x[index]	下标
+19	x[index:index]	寻址段
+20	f(arguments...)	函数调用
+21	(experession,...)	绑定或元组显示
+22	[expression,...]	列表显示
+23	{key:datum,...}	字典显示
+24	'expression,...'	字符串转换
+"""
 #class 代码块
 import re
 
@@ -29,7 +59,7 @@ class Real(float,Variable):
 class String(str,Variable):
     def __repr__(self): #TODO '''"""'''111 这尼玛这么处理或者就这么算了？？
         return '"'+self.value+'"'
-class Char(Variable): #不能进行加减乘除
+class Character(Variable): #不能进行加减乘除
     def __repr__(self):
         assert len(self.value)==1
         assert isinstance(self.value,str)
@@ -125,7 +155,6 @@ def compile_lines(lines):
             line_num=end_sub+1
         print('variables:',variables)
 def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
-    #还没有考虑括号！
     #TODO 可能有更好地算法
     original=[exp]
     for op in operators:
@@ -142,18 +171,20 @@ def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
     op_positions=[i for i in range(len(result)) if result[i] in operators]
     op_in_bracket_count=0
     print('sep_exps_eval分隔结果，运算符位置，运算符：',result,op_positions,operators)
-    # for op_count in range(len(op_positions)):
-    op_count=0
-    for real_operator_position in range(len(result)):
-        real_operator_position -= op_in_bracket_count * 2  # 每一次都会少2项
-        if real_operator_position >= len(result):
-            break
-        if result[real_operator_position] in operators and op_in_bracket(result[real_operator_position], op_count,
-                                                                         result):
-            result[real_operator_position - 1:real_operator_position + 2] = [
-                ''.join(result[real_operator_position - 1:real_operator_position + 2])]
-            op_in_bracket_count += 1
-            op_count+=1
+    for op in operators:
+        op_count=-1 #第一次遇到了变成0，op_in_bracket的时候就可以用正确的op_count
+        for real_operator_position in range(len(result)):
+            real_operator_position -= op_in_bracket_count * 2  # 每一次都会少2项
+            if real_operator_position >= len(result):
+                break
+            if op in result[real_operator_position]: #只要在里面就+1，应和op_in_bracket需要（保持同步）
+                op_count += 1
+            if result[real_operator_position]==op and op_in_bracket(result[real_operator_position], op_count,
+                                                                             result):
+                result[real_operator_position - 1:real_operator_position + 2] = [
+                    ' '.join(result[real_operator_position - 1:real_operator_position + 2])]
+                op_in_bracket_count += 1
+
     print('sep_exp_eval结果：',result)
     return result
     # return clean_exps(original)
@@ -173,7 +204,7 @@ def op_in_bracket(op, op_seq, seps):
     op_count=-1 #记数：遇到了第几个op了(0开始)
     exp_count=0 #记数：第几个表达式包含第op_seq个op(0开始)
     while True:
-        if seps[exp_count]==op:
+        if op in seps[exp_count]:
             op_count+=1
         if op_count==op_seq:
             break
@@ -183,7 +214,7 @@ def op_in_bracket(op, op_seq, seps):
     if original_exp.count('(') > original_exp.count(')'):
         return True
     else:
-        return False  # TODO 检验）数量>（数量
+        return False  # TODO 检验'）'数量>'（'数量
 # print(op_in_bracket('+',0,['(1','+','1)*2']))
 
 
@@ -199,6 +230,7 @@ def evaluate_exp(exp): #替换，识别，运算
     print('evaluate_exp接收到:',exp)
     if exp[0]=='(' and exp[-1]==')':
         exp=exp[1:-1]
+    #TODO 也许可以把所有东西都替换成例如Integer(1)或者String("111")这种玩意就没那么多事了
     if variable_type_recognition(exp):
         return eval(variable_type_recognition(exp) + '(' + exp + ')')
     for i in variables:
@@ -206,12 +238,15 @@ def evaluate_exp(exp): #替换，识别，运算
         exp = exp.replace(i, str(variables[i]))
     flag = False
     for ops in [
-        [['NOT',1],['AND',2],['OR',2]],
+        [['NOT', 1]],
+        [['OR',2],['AND',2]],
         [['>=',2],['>',2],['<',2],['<=',2],['!=',2],['==',2]],
         [['+',2],['-',2]],
         [['*',2],['/',2],['//',2]]
-        # TODO 本来应该单目的专门搞一类，算法也许也不一样，这里就偷懒了。反正要让单目的先算
-    ]:
+         ]:
+        # TODO 问题是，从来没有单目和双目一个级别的。。。原来NOT 和 AND 不一个级别。。
+        # TODO 新思路：奇数是运算符？
+
         if flag==True: #分隔了
             break
         seps = sep_exps_eval(exp, [i[0] for i in ops]) #提取运算符并分隔
@@ -221,20 +256,38 @@ def evaluate_exp(exp): #替换，识别，运算
             seps[0:2]= [seps[0]+seps[1]]
         if seps[0] == '-':  #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
             seps[0:2] = [seps[0]+seps[1]]
+        # TODO 大改
+        #TODO 不对，双目不该参与op的循环？
         for op in ops: #op:['AND',2(双目运算符)]
-            for op_seq in range(seps.count(op[0])):
-                if op[1]==1 and op[0] in exp: #处理单目运算符,要求存在该运算符+
-                    py_op=op[0].lower()
-                    index=seps.index(op[0])
-                    replace_str=str(eval('%s evaluate_exp(seps[index+1])'%py_op)) #eval('not 1') -> 'False'
-                    seps=seps[:index]+[replace_str]+seps[index+2:]
-                    #为了允许多次处理，再次转化为str
-                if op[1]==2 and op[0] in exp: #处理双目运算符,要求存在该运算符
-                    py_op=op[0].lower()
-                    index=seps.index(op[0])
-                    replace_str=str(eval('evaluate_exp(seps[index-1]) %s evaluate_exp(seps[index+1])'%py_op)) #eval('1 AND True')
-                    seps=seps[:index-1]+[replace_str]+seps[index+2:]
-                #也许应该么每次都转化为str，最后再variabe_type_recognition() -> 1+1+1?
+            if op[1] == 1 and op[0] in exp:  # 处理单目运算符,要求存在该运算符+
+                for op_seq in range(seps.count(op[0])):
+                    py_op = op[0].lower()
+                    index = seps.index(op[0])
+                    replace_str = str(eval('%s evaluate_exp(seps[index+1])' % py_op))  # eval('not 1') -> 'False'
+                    seps = seps[:index] + [replace_str] + seps[index + 2:]
+            if op[1] == 2 and op[0] in exp:  # 处理双目运算符,要求存在该运算符
+                assert len(seps)%2  #双目运算符分割后应该是单数个表达式
+                for index in range(1,len(seps),2): #index->运算符位置，不就是奇数么
+                    py_op = op[0].lower()
+                    replace_str = str(
+                        eval('evaluate_exp(seps[index-1]) %s evaluate_exp(seps[index+1])' % py_op))  # eval('1 AND True')
+                    seps = seps[:index - 1] + [replace_str] + seps[index + 2:]
+                break #双目只需一次！因为特殊形式，在内部一次遍历
+
+        # for op in ops: #op:['AND',2(双目运算符)]
+        #     for op_seq in range(seps.count(op[0])):
+        #         if op[1]==1 and op[0] in exp: #处理单目运算符,要求存在该运算符+
+        #             py_op=op[0].lower()
+        #             index=seps.index(op[0])
+        #             replace_str=str(eval('%s evaluate_exp(seps[index+1])'%py_op)) #eval('not 1') -> 'False'
+        #             seps=seps[:index]+[replace_str]+seps[index+2:]
+        #             #为了允许多次处理，再次转化为str
+        #         if op[1]==2 and op[0] in exp: #处理双目运算符,要求存在该运算符
+        #             py_op=op[0].lower()
+        #             index=seps.index(op[0])
+        #             replace_str=str(eval('evaluate_exp(seps[index-1]) %s evaluate_exp(seps[index+1])'%py_op)) #eval('1 AND True')
+        #             seps=seps[:index-1]+[replace_str]+seps[index+2:]
+        #         #也许应该么每次都转化为str，最后再variabe_type_recognition() -> 1+1+1?
     print('输入:',exp,'evaluate_exp的结果是:',seps)
     assert len(seps)==1 #化简后应该只有一个
     result=seps[0]
