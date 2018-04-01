@@ -7,45 +7,17 @@ STRING: A sequences of blanks, letters or words E.g. “Love”, “Today is a l
 BOOLEAN: Logical values. E.g. TRUE or FALSE
 DATE: Any date in date format. E.g. 03/12/2016
 The assignment operator is ← (ID:8592)
-
-借鉴了python的优先级
-Python运算符详细说明
-下表从高到低列出了运算符的优先级。同一行中的运算符具有相同优先级，然后运算符的优先级是运算表达式从左到右。
-
-优先级	运算符	描述
-1	lambda	Lambda表达式
-2	or	布尔“或”
-3	and	布尔“与”
-4	not x	布尔“非”
-5	in，not in	成员测试
-6	is，is not	同一性测试
-7	<，<=，>，>=，!=，==	比较
-8	|	按位或
-9	^	按位异或
-10	&	按位与
-11	<<，>>	移位
-12	+，-	加法与减法
-13	*，/，%	乘法、除法与取余
-14	+x，-x	正负号
-15	~x	按位翻转
-16	**	指数
-17	x.attribute	属性参考
-18	x[index]	下标
-19	x[index:index]	寻址段
-20	f(arguments...)	函数调用
-21	(experession,...)	绑定或元组显示
-22	[expression,...]	列表显示
-23	{key:datum,...}	字典显示
-24	'expression,...'	字符串转换
 """
 #class 代码块
 import re
 
-variables={}
+variables={'A':'String("3445")','B':'Integer(3)'}
 reserved_words=['IF', 'ELSE', 'ENDIF', 'WHILE', 'DO', 'ENDWHILE', 'FUNCTION', 'PROCEDURE', 'RETURN', 'DECLARE',
                 'NOT', 'STRING', 'INTEGER', 'REAL', 'CHAR', 'BOOLEAN', 'DATE', 'MOD', 'DIV', 'AND', 'OR',
                 'INPUT', 'OUTPUT', 'READ', 'WRITE', 'CASE', 'OF', 'ENDCASE', 'ENDPROCEDURE', 'ENDFUNCTION',
                 'FOR', 'NEXT', 'TO', 'CALL']
+operators=['NOT','OR','AND','>=','>','<=','<','!=','==','+','-','*','/','//']
+#>=在>之前，<=在<之前，因为之后会根据顺序分割表达式
 class Variable:
     pass
     def __init__(self,value):
@@ -74,57 +46,27 @@ def variable_name_check(name):
         print("不能以保留字作为变量名称")
         return False
     return True
-def variable_type_recognition(value): #辨认变量类型
+def value_transformation(value): #辨认变量类型
     # print('val',value,type(value))
-    if re.match(r'^[+-]?[0-9]+$', value):
+    if re.match(r'^[+-]?[0-9]+$', value) :
         return 'Integer('+str(value)+')'
     if len(value) >= 2 and value[0] == value[-1] == '"' and "'" not in value:
         return 'String('+str(value)+')'
     if len(value) == 3 and value[0] == value[-1] == "'":
         return 'Char('+str(value)+')'
-    if re.match(r'^-?[0-9]+[.][0-9]+$', value):
+    if re.match(r'^[+-]?[0-9]+[.][0-9]+$', value):
         return 'Real('+str(value)+')'
     if value=='True' or value=='False':
         return 'Boolean('+str(value)+')'
+    if re.match(r'^(String|Integer|Real|Character|Boolean)\((.+)\)$', value):
+        match=re.match(r'^(String|Integer|Real|Character|Boolean)\((.+)\)$', value)
+        if value_transformation(match.group(2)) == value: # 3.0->Real(3.0)
+            return value
     print('未知数据类型:',value)
     return '' #False
-print(variable_type_recognition("3.0"))
-def unindent(lines):
-    result=[]
-    for i in lines:
-        if i[0]=='\t':
-            result.append(i[1:])
-        else:
-            print('不是Tab，无法unindent')
-            return False
-    return result
-def IF_executor(lines):
-    print('This is if_exe:',lines)
-    condition=' '.join(sep_expression(lines[0],' ')[1:-1]) #WHILE (NOT a/1==1) THEN
-    print('条件:',condition)
-    condition=evaluate_exp(condition)
-    print('条件结果:',condition)
-    print('执行区域:',lines[1:-1])
-    if condition:
-        compile_lines(unindent(lines[1:-1]))
-def WHILE_executor(lines):
-    print('This is while_exe:',lines)
-    while True:
-        condition=sep_expression(lines[0],' ')[1] #WHILE (1==1) THEN
-        print('条件:', condition)
-        condition=evaluate_exp(condition)
-        print('条件结果:',condition)
-        print('执行区域:',lines[1:-1])
-        if condition:
-            compile_lines(unindent(lines[1:-1]))
-        else:
-            break
-def find_pair(word,lines,start): #Accepts iterator for lines
-    """Find the pairs in the context(start-end). For example, if word=="IF", it returns the position of "ENDIF"""
-    for i in range(start, len(lines)):
-        if 'END'+word in lines[i]:
-            return i
-    return -1
+print(value_transformation('String("1231231")'))
+
+
 def clean_exps(exps): #去除每个的后面空格，拒绝''
     result = []
     for i in exps:
@@ -134,31 +76,11 @@ def clean_exps(exps): #去除每个的后面空格，拒绝''
         result[i]=result[i].lstrip()
     return result
 def sep_expression(exp,sep): #以sep分隔，去除每个的后面空格，拒绝''
-    return clean_exps(exp.split(sep))
-def compile_lines(lines):
-    line_num=0
-    while line_num<len(lines):
-        # for line_num in range(len(lines)): #废弃：无法实时修改line_num
-        #记得删除空格
-        line=lines[line_num]
-        line=line.rstrip()
-        if '<-' in line: #and '=='not in line:
-            assignment(lines[line_num])
-            line_num+=1
-        if 'IF' in line:
-            end_sub=find_pair('IF',lines,line_num) #IF 结束序号
-            IF_executor(lines[line_num:end_sub+1])
-            line_num=end_sub+1
-        if 'WHILE' in line:
-            end_sub=find_pair('WHILE',lines,line_num) #WHILE 结束序号
-            print(end_sub)
-            WHILE_executor(lines[line_num:end_sub+1])
-            line_num=end_sub+1
-        print('variables:',variables)
-def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
     #TODO 可能有更好地算法
+    if isinstance(sep,str):
+        sep=[sep]
     original=[exp]
-    for op in operators:
+    for op in sep:
         result = []
         for ori in original:
             for t in ori.split(op):
@@ -167,6 +89,35 @@ def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
             result=result[:-1]
         original=result
     result=clean_exps(result)
+    for i in range(len(result) - 1):
+        if i>= len(result)-1:
+            break
+        if result[i] in '><' and result[i + 1] == '=': #合并>=和<=
+            result[i:i+2] = [result[i] + result[i + 1]]
+        if result[i] in '+-' and result[i + 1].isdigit(): #合并+/- (int)
+            result[i:i+2] = [result[i] + result[i + 1]]
+    print("sep_expression, result:",result)
+    return clean_exps(result)
+
+
+def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
+    #TODO 可能有更好地算法
+    # original=[exp]
+    # for op in operators:
+    #     result = []
+    #     for ori in original:
+    #         for t in ori.split(op):
+    #             result.append(t)
+    #             result.append(op)
+    #         result=result[:-1]
+    #     original=result
+    # result=clean_exps(result)
+    # for i in range(len(result) - 1):
+    #     if i>= len(result)-1:
+    #         break
+    #     if result[i] in '><' and result[i + 1] == '=': #合并>=和<=
+    #         result[i:i+2] = [result[i] + result[i + 1]]
+    result=sep_expression(exp,operators)
     #选择在这里加入判断是否运算符在括号内
     # eg. ['(1','+','2)*3','+','2'] 5项
     op_positions=[i for i in range(len(result)) if result[i] in operators]
@@ -190,8 +141,7 @@ def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
     return result
     # return clean_exps(original)
 
-def evaluate_sinmple_exp(exp):
-    pass
+
 
 
 def op_in_bracket(op, op_seq, seps):
@@ -228,59 +178,72 @@ def evaluate_exp(exp): #替换，识别，运算
         a)    YES:返回
         b)    NO:再下一层
     '''
+    
     print('evaluate_exp接收到:',exp)
     if exp[0]=='(' and exp[-1]==')':
         exp=exp[1:-1]
-    #TODO 也许可以把所有东西都替换成例如Integer(1)或者String("111")这种玩意就没那么多事了
-    if variable_type_recognition(exp):
-        return variable_type_recognition(exp)
-    separated_exp=sep_exps_eval(exp,['NOT','OR','AND','>=','>','<','<=','!=','==','+','-','*','/','//'])
-    for i in variables: #TODO  A AND B 会替换AND里面的A？
-        # exp='('+exp.replace(i,str(variables[i]))+')'
-        exp = exp.replace(i, variables[i])
+    #把所有东西都替换成例如Integer(1)或者String("111")这种玩意就没那么多事了
+    if value_transformation(exp):
+        return value_transformation(exp)
+    separated_exps=sep_expression(exp,['(',')']+operators)
+    #>=一定要在>前面
+    print('sep_Eps:',separated_exps)
+    # for variable_name in variables:
+    #     while separated_exps.count(variable_name)>0:
+    #         index=separated_exps.index(variable_name)
+    #         separated_exps[index] = variables[variable_name]
+    for count in range(len(separated_exps)):
+        this_term=separated_exps[count]
+        if this_term in ['(',')']+operators:
+            continue
+        elif this_term in variables:
+            separated_exps[count] = variables[this_term]
+        else:
+            separated_exps[count] = value_transformation(this_term)
+    print('sep_Eps2:', separated_exps)
+    exp=' '.join(separated_exps)
     flag = False
     for ops in [
         [['NOT', 1]],
         [['OR',2],['AND',2]],
-        [['>=',2],['>',2],['<',2],['<=',2],['!=',2],['==',2]],
+        [['>=',2],['<=',2],['>',2],['<',2],['!=',2],['==',2]],
         [['+',2],['-',2]],
         [['*',2],['/',2],['//',2]]
          ]:
-        # TODO 问题是，从来没有单目和双目一个级别的。。。原来NOT 和 AND 不一个级别。。
-        # TODO 新思路：奇数是运算符？
+        # 思路：若是单目，处理之后继续循环；如果是双目，搞完就跑。
 
         if flag==True: #分隔了
             break
         seps = sep_exps_eval(exp, [i[0] for i in ops]) #提取运算符并分隔
         if seps!=[exp]:
             flag=True
-        if seps[0]=='+': #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
-            seps[0:2]= [seps[0]+seps[1]]
-        if seps[0] == '-':  #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
-            seps[0:2] = [seps[0]+seps[1]]
-        # TODO 大改
-        #TODO 不对，双目不该参与op的循环？
+        # if seps[0]=='+': #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
+        #     seps[0:2]= [seps[0]+seps[1]]
+        # if seps[0] == '-':  #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
+        #     seps[0:2] = [seps[0]+seps[1]]
+        if ops[0][1] == 2:
+            assert len(seps) % 2  # 双目运算符分割后应该是单数个表达式
+            for index in range(1, len(seps), 2):  # index->运算符位置，不就是奇数么
+                py_op = op[0].lower()
+                replace_str = str(
+                    eval('evaluate_exp(seps[index-1]) %s evaluate_exp(seps[index+1])' % py_op))  # eval('1 AND True')
+                seps = seps[:index - 1] + [replace_str] + seps[index + 2:]
+            continue
         for op in ops: #op:['AND',2(双目运算符)]
-            if op[1] == 1 and op[0] in exp:  # 处理单目运算符,要求存在该运算符+
+            if ops[0][1] == 1 and op[0] in exp:  # 处理单目运算符,要求存在该运算符+
+                flag = False  # 如果是单目，允许进行下一轮
                 for op_seq in range(seps.count(op[0])):
                     py_op = op[0].lower()
                     index = seps.index(op[0])
                     replace_str = str(eval('%s evaluate_exp(seps[index+1])' % py_op))  # eval('not 1') -> 'False'
                     seps = seps[:index] + [replace_str] + seps[index + 2:]
-            if op[1] == 2 and op[0] in exp:  # 处理双目运算符,要求存在该运算符
-                assert len(seps)%2  #双目运算符分割后应该是单数个表达式
-                for index in range(1,len(seps),2): #index->运算符位置，不就是奇数么
-                    py_op = op[0].lower()
-                    replace_str = str(
-                        eval('evaluate_exp(seps[index-1]) %s evaluate_exp(seps[index+1])' % py_op))  # eval('1 AND True')
-                    seps = seps[:index - 1] + [replace_str] + seps[index + 2:]
-                break #双目只需一次！因为特殊形式，在内部一次遍历
+
 
     print('输入:',exp,'evaluate_exp的结果是:',seps)
     assert len(seps)==1 #化简后应该只有一个
     result=seps[0]
-    if variable_type_recognition(result):
-        return eval(variable_type_recognition(result) + '(' + result + ')')
+    if value_transformation(result):
+        return eval(value_transformation(result) + '(' + result + ')')
     # return seps[0]
 
     # try:
@@ -292,17 +255,10 @@ def assignment(line):
     i = sep_expression(line,'<-')
     identifier, value = i[0], i[1]
     print('identifier=',identifier,'value=',value)
-    if variable_name_check(identifier):# and variable_type_recognition(value): #Questioned
+    if variable_name_check(identifier):# and value_transformation(value): #Questioned
         global variables
         variables[identifier] = evaluate_exp(value)
     else:
         pass
-
-# print(evaluate_exp('1<2'))
-if __name__=='__main__':
-    #暂定为读取文件
-    with open('test.txt','r') as file:
-        lines=file.read().rstrip().split('\n') #以\n为分隔符
-        print('所有行:',lines)
-        compile_lines(lines)
-    print(variables)
+# print(evaluate_exp('-(-1)'))
+print(evaluate_exp('A AND 1>=2 OR 3<=9 AND -(-1)'))
