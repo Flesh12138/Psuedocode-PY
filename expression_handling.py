@@ -17,6 +17,7 @@ reserved_words=['IF', 'ELSE', 'ENDIF', 'WHILE', 'DO', 'ENDWHILE', 'FUNCTION', 'P
                 'INPUT', 'OUTPUT', 'READ', 'WRITE', 'CASE', 'OF', 'ENDCASE', 'ENDPROCEDURE', 'ENDFUNCTION',
                 'FOR', 'NEXT', 'TO', 'CALL']
 operators=['NOT','OR','AND','>=','>','<=','<','!=','==','+','-','*','/','//']
+class_names=['Integer','Real','Character','String','Boolean']
 #>=在>之前，<=在<之前，因为之后会根据顺序分割表达式
 class Variable:
     pass
@@ -64,16 +65,16 @@ def value_transformation(value): #辨认变量类型
             return value
     print('未知数据类型:',value)
     return '' #False
-print(value_transformation('String("1231231")'))
+print(value_transformation('String("3445")'))
 
 
 def clean_exps(exps): #去除每个的后面空格，拒绝''
     result = []
     for i in exps:
         if i!='' and i!= (' '*len(i)): #不要'','  '之类
-            result.append(i.rstrip()) #去掉右边的空格
+            result.append(i.rstrip().lstrip()) #去掉右边的空格
     for i in range(1,len(result)): #第二个开始左边的也去掉
-        result[i]=result[i].lstrip()
+        result[i]=result[i].lstrip().lstrip()
     return result
 def sep_expression(exp,sep): #以sep分隔，去除每个的后面空格，拒绝''
     #TODO 可能有更好地算法
@@ -94,7 +95,8 @@ def sep_expression(exp,sep): #以sep分隔，去除每个的后面空格，拒�
             break
         if result[i] in '><' and result[i + 1] == '=': #合并>=和<=
             result[i:i+2] = [result[i] + result[i + 1]]
-        if result[i] in '+-' and result[i + 1].isdigit(): #合并+/- (int)
+        if result[i] in '+-' and re.match(r'^\d+\.\d+$',result[i + 1]) and re.match(r'^\d+\.\d+$',result[i + 1]) :
+            #合并+/- (int) #TODO 应该判断前后是否都是小数或整数
             result[i:i+2] = [result[i] + result[i + 1]]
     print("sep_expression, result:",result)
     return clean_exps(result)
@@ -102,28 +104,14 @@ def sep_expression(exp,sep): #以sep分隔，去除每个的后面空格，拒�
 
 def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
     #TODO 可能有更好地算法
-    # original=[exp]
-    # for op in operators:
-    #     result = []
-    #     for ori in original:
-    #         for t in ori.split(op):
-    #             result.append(t)
-    #             result.append(op)
-    #         result=result[:-1]
-    #     original=result
-    # result=clean_exps(result)
-    # for i in range(len(result) - 1):
-    #     if i>= len(result)-1:
-    #         break
-    #     if result[i] in '><' and result[i + 1] == '=': #合并>=和<=
-    #         result[i:i+2] = [result[i] + result[i + 1]]
     result=sep_expression(exp,operators)
     #选择在这里加入判断是否运算符在括号内
     # eg. ['(1','+','2)*3','+','2'] 5项
     op_positions=[i for i in range(len(result)) if result[i] in operators]
-    op_in_bracket_count=0
+    # op_in_bracket_count=0
     print('sep_exps_eval分隔结果，运算符位置，运算符：',result,op_positions,operators)
     for op in operators:
+        op_in_bracket_count=0
         op_count=-1 #第一次遇到了变成0，op_in_bracket的时候就可以用正确的op_count
         for real_operator_position in range(len(result)):
             real_operator_position -= op_in_bracket_count * 2  # 每一次都会少2项
@@ -134,7 +122,7 @@ def sep_exps_eval(exp,operators=[]): #以同一级别的运算符分隔
             if result[real_operator_position]==op and op_in_bracket(result[real_operator_position], op_count,
                                                                              result):
                 result[real_operator_position - 1:real_operator_position + 2] = [
-                    ' '.join(result[real_operator_position - 1:real_operator_position + 2])]
+                    ''.join(result[real_operator_position - 1:real_operator_position + 2])]
                 op_in_bracket_count += 1
 
     print('sep_exp_eval结果：',result)
@@ -168,26 +156,97 @@ def op_in_bracket(op, op_seq, seps):
         return False  # TODO 检验'）'数量>'（'数量
 # print(op_in_bracket('+',0,['(1','+','1)*2']))
 
+def evaluate_transformed_exp(exp): #替换，识别，运算
+    flag = False
+    for ops in [
+        [['NOT', 1]],
+        [['OR', 2], ['AND', 2]],
+        [['>=', 2], ['<=', 2], ['>', 2], ['<', 2], ['!=', 2], ['==', 2]],
+        [['+', 2], ['-', 2]],
+        [['*', 2], ['/', 2], ['//', 2]]
+    ]:
+        # 思路：若是单目，处理之后继续循环；如果是双目，搞完就跑。
 
-def evaluate_exp(exp): #替换，识别，运算
-    '''
-    1.是否能直接给出答案
-    2.代入
-    3.分隔
-    4.最底层分隔。分割了？
-        a)    YES:返回
-        b)    NO:再下一层
-    '''
-    
-    print('evaluate_exp接收到:',exp)
-    if exp[0]=='(' and exp[-1]==')':
-        exp=exp[1:-1]
+        if flag == True:  # 分隔了
+            break
+        seps = sep_exps_eval(exp, [i[0] for i in ops])  # 提取运算符并分隔
+        if seps != [exp]:
+            flag = True
+        if seps[0]=='+': #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
+            seps[0:2]= [seps[0]+seps[1]]
+        if seps[0] == '-':  #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
+            seps[0:2] = [seps[0]+seps[1]]
+        #example: ['-', 'Integer( - 1)']
+        if ops[0][1] == 2:
+            assert len(seps) % 2  # 双目运算符分割后应该是单数个表达式
+            for index in range(1, len(seps), 2):  # index->运算符位置，不就是奇数么
+                py_op = seps[1].lower()
+                replace_str = str(
+                    eval(
+                        evaluate_exp(seps[0])+' '+
+                        py_op +' '+
+                        evaluate_exp(seps[2]) #要有空格
+                    ))  # eval('1 AND True')
+                seps = [replace_str] + seps[3:]
+            continue
+        for op in ops:  # op:['AND',2(双目运算符)]
+            if ops[0][1] == 1 and op[0] in exp:  # 处理单目运算符,要求存在该运算符+
+                flag = False  # 如果是单目，允许进行下一轮
+                for op_seq in range(seps.count(op[0])):
+                    py_op = op[0].lower()
+                    index = seps.index(op[0])
+                    replace_str = str(eval(
+                        py_op +
+                        evaluate_exp(seps[index+1])
+                    ))  # eval('not 1') -> 'False'
+                    seps = seps[:index] + [replace_str] + seps[index + 2:]
+
+    print('输入:', exp, 'evaluate_transformed_exp的结果是:', seps)
+    assert len(seps) == 1  # 化简后应该只有一个
+    result = seps[0]
+    if value_transformation(result):
+        return value_transformation(result)
+def strip_surface_brackets(exp): #若最前最后2括号为多余，则舍弃，否则返回原字符串
+    print('准备去除前后括号：',exp)
+    if exp[0] != '(' or exp[-1] != ')':
+        return exp #压根不是
+    left_count=0
+    for i in exp[1:-1]:
+        if left_count<0:
+            print('无法去除前后括号：', exp)
+            return exp
+        if i=='(':
+            left_count+=1
+        if i==')':
+            left_count-=1
+    print('已经去除前后括号：', exp[1:-1])
+    return exp[1:-1]
+def transform_exp(exp): #替换，识别，运算
+    print('transform_exp接收到:',exp)
+    # if exp[0]=='(' and exp[-1]==')': #TODO 有问题 eg. (1+2)*(3) - > 1+2)*3
+    exp=strip_surface_brackets(exp)
     #把所有东西都替换成例如Integer(1)或者String("111")这种玩意就没那么多事了
-    if value_transformation(exp):
+    if value_transformation(exp): #可能与eval_exp重复
         return value_transformation(exp)
     separated_exps=sep_expression(exp,['(',')']+operators)
     #>=一定要在>前面
-    print('sep_Eps:',separated_exps)
+    print('transform_exp第1步（分隔）:',separated_exps)
+    for exp in range(len(separated_exps)):
+        if exp>=len(separated_exps):
+            break
+        if separated_exps[exp] in class_names:
+            separated_exps[exp:exp+4]=[''.join(separated_exps[exp:exp+4])]
+            #example: ['Integer', '(', '1', ')', '>=', 'Integer', '(', '2', ')'] -> Integer(1)
+        # if separated_exps[exp] =='(' and separated_exps[exp+2]==')': #TODO Necessary?
+        #     separated_exps[exp:exp+3]=[separated_exps[exp+1]]
+            #example: ['Integer', '(', '1', ')', '>=', 'Integer', '(', '2', ')'] -> Integer(1)
+        if separated_exps[0]=='+': #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
+            separated_exps[0:2]= [separated_exps[0]+separated_exps[1]]
+        if separated_exps[0] == '-':  #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
+            separated_exps[0:2] = [separated_exps[0]+separated_exps[1]]
+
+
+    print('transform_exp第2步（特殊处理）:', separated_exps)
     # for variable_name in variables:
     #     while separated_exps.count(variable_name)>0:
     #         index=separated_exps.index(variable_name)
@@ -200,57 +259,11 @@ def evaluate_exp(exp): #替换，识别，运算
             separated_exps[count] = variables[this_term]
         else:
             separated_exps[count] = value_transformation(this_term)
-    print('sep_Eps2:', separated_exps)
     exp=' '.join(separated_exps)
-    flag = False
-    for ops in [
-        [['NOT', 1]],
-        [['OR',2],['AND',2]],
-        [['>=',2],['<=',2],['>',2],['<',2],['!=',2],['==',2]],
-        [['+',2],['-',2]],
-        [['*',2],['/',2],['//',2]]
-         ]:
-        # 思路：若是单目，处理之后继续循环；如果是双目，搞完就跑。
-
-        if flag==True: #分隔了
-            break
-        seps = sep_exps_eval(exp, [i[0] for i in ops]) #提取运算符并分隔
-        if seps!=[exp]:
-            flag=True
-        # if seps[0]=='+': #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
-        #     seps[0:2]= [seps[0]+seps[1]]
-        # if seps[0] == '-':  #单目 （＋－是唯一的双目和单目同一符号，所以当第一个是+-时，和第二项合并）
-        #     seps[0:2] = [seps[0]+seps[1]]
-        if ops[0][1] == 2:
-            assert len(seps) % 2  # 双目运算符分割后应该是单数个表达式
-            for index in range(1, len(seps), 2):  # index->运算符位置，不就是奇数么
-                py_op = op[0].lower()
-                replace_str = str(
-                    eval('evaluate_exp(seps[index-1]) %s evaluate_exp(seps[index+1])' % py_op))  # eval('1 AND True')
-                seps = seps[:index - 1] + [replace_str] + seps[index + 2:]
-            continue
-        for op in ops: #op:['AND',2(双目运算符)]
-            if ops[0][1] == 1 and op[0] in exp:  # 处理单目运算符,要求存在该运算符+
-                flag = False  # 如果是单目，允许进行下一轮
-                for op_seq in range(seps.count(op[0])):
-                    py_op = op[0].lower()
-                    index = seps.index(op[0])
-                    replace_str = str(eval('%s evaluate_exp(seps[index+1])' % py_op))  # eval('not 1') -> 'False'
-                    seps = seps[:index] + [replace_str] + seps[index + 2:]
-
-
-    print('输入:',exp,'evaluate_exp的结果是:',seps)
-    assert len(seps)==1 #化简后应该只有一个
-    result=seps[0]
-    if value_transformation(result):
-        return eval(value_transformation(result) + '(' + result + ')')
-    # return seps[0]
-
-    # try:
-    #     return eval(exp)
-    # except TypeError as e:
-    #     return False
-    #DIV,MOD
+    print("transformed_exp:",exp)
+    return exp
+    #TODO DIV,MOD
+evaluate_exp=lambda exp:value_transformation(exp) if value_transformation(exp) else evaluate_transformed_exp(transform_exp(exp))
 def assignment(line):
     i = sep_expression(line,'<-')
     identifier, value = i[0], i[1]
@@ -261,4 +274,4 @@ def assignment(line):
     else:
         pass
 # print(evaluate_exp('-(-1)'))
-print(evaluate_exp('A AND 1>=2 OR 3<=9 AND -(-1)'))
+print(evaluate_exp('A AND 4 OR 7 AND (7+5)*6'))
